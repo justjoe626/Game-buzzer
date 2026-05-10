@@ -26,14 +26,14 @@
 
         // IMPORTANT: Paste your Firebase config here. This app will not work without it.
         // Follow the instructions to get your own config from the Firebase console.
-       const firebaseConfig = {
-  apiKey: "AIzaSyCw4QceyvnlDAbTmzWZhUgF-gID9YrHhng",
-  authDomain: "game-buzzer-b9670.firebaseapp.com",
-  projectId: "game-buzzer-b9670",
-  storageBucket: "game-buzzer-b9670.firebasestorage.app",
-  messagingSenderId: "496631659235",
-  appId: "1:496631659235:web:9804174d545fa1169423d6"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyCw4QceyvnlDAbTmzWZhUgF-gID9YrHhng",
+            authDomain: "game-buzzer-b9670.firebaseapp.com",
+            projectId: "game-buzzer-b9670",
+            storageBucket: "game-buzzer-b9670.firebasestorage.app",
+            messagingSenderId: "496631659235",
+            appId: "1:496631659235:web:9804174d545fa1169423d6"
+        };
         
         // This is a placeholder for your unique Firebase project ID.
         // You will get this when you set up your project.
@@ -83,7 +83,7 @@
                             <span class="flex-shrink mx-4 text-gray-500">OR</span>
                             <div class="flex-grow border-t border-gray-300"></div>
                         </div>
-                        <input id="game-id-input" type="text" placeholder="Enter Game ID" class="w-full p-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-all duration-200">
+                        <input id="game-id-input" type="text" placeholder="Enter Game ID" class="w-full p-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-all duration-200" style="text-transform:uppercase">
                         <button id="join-game-btn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 hover:bg-green-700">Join Game</button>
                     </div>
                 `;
@@ -136,7 +136,7 @@
                         <!-- Game ID Display for easy sharing -->
                         <div class="bg-gray-100 p-4 rounded-lg shadow-inner text-center">
                             <h2 class="text-2xl font-bold text-gray-700">Game ID:</h2>
-                            <p class="text-3xl font-mono font-bold text-blue-600">${gameId}</p>
+                            <p class="text-3xl font-mono font-bold text-blue-600 tracking-wider">${gameId}</p>
                             <p class="text-sm text-gray-500 mt-2">Share this ID with other players!</p>
                         </div>
 
@@ -167,6 +167,16 @@
                 }
             };
 
+            // Generate a readable 6-character ID
+            const generateReadableId = () => {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let result = '';
+                for (let i = 0; i < 6; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return result;
+            };
+
             // Main game logic
             const createGame = async () => {
                 playerName = document.getElementById('player-name-input').value;
@@ -176,8 +186,8 @@
                 }
                 
                 try {
-                    const newGameDocRef = doc(collection(db, 'games'));
-                    gameId = newGameDocRef.id;
+                    const customId = generateReadableId();
+                    const newGameDocRef = doc(db, 'games', customId);
 
                     await setDoc(newGameDocRef, {
                         hostId: userId,
@@ -188,6 +198,7 @@
                         createdAt: new Date(),
                     });
 
+                    gameId = customId;
                     isHost = true;
                     gameStarted = true;
                     localStorage.setItem('gameId', gameId);
@@ -201,7 +212,8 @@
 
             const joinGame = async () => {
                 playerName = document.getElementById('player-name-input').value;
-                gameId = document.getElementById('game-id-input').value;
+                gameId = document.getElementById('game-id-input').value.toUpperCase(); // Force uppercase to match generated IDs
+                
                 if (!playerName || !gameId) {
                     showMessage('Please enter a Game ID and a player name.');
                     return;
