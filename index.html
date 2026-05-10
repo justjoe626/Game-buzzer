@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Buzzer App</title>
-    <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -15,17 +14,14 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-6">
     <div id="app-container" class="w-full max-w-md bg-white rounded-xl shadow-2xl p-8 space-y-6">
-        <!-- The app content will be dynamically inserted here -->
-    </div>
+        </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, runTransaction } from "[https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js)";
 
-        // IMPORTANT: Paste your Firebase config here. This app will not work without it.
-        // Follow the instructions to get your own config from the Firebase console.
+        // Your specific Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCw4QceyvnlDAbTmzWZhUgF-gID9YrHhng",
             authDomain: "game-buzzer-b9670.firebaseapp.com",
@@ -35,323 +31,304 @@
             appId: "1:496631659235:web:9804174d545fa1169423d6"
         };
         
-        // This is a placeholder for your unique Firebase project ID.
-        // You will get this when you set up your project.
-        const projectId = firebaseConfig.projectId;
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
 
-        // Initialize Firebase
-        if (firebaseConfig.apiKey === 'YOUR_API_KEY') {
-            document.getElementById('app-container').innerHTML = `
-                <div class="p-6 bg-red-100 text-red-700 rounded-lg shadow-md text-center">
-                    <h2 class="font-bold text-xl mb-2">Configuration Error</h2>
-                    <p>Please replace the placeholder values in the <code>firebaseConfig</code> object with your actual project keys from the Firebase Console. This app will not work until you do so.</p>
+        let userId = null;
+        let isHost = false;
+        let gameStarted = false;
+        let playerName = '';
+        let gameId = '';
+        let unsubscribeSnapshot = null;
+
+        const appContainer = document.getElementById('app-container');
+
+        const showMessage = (message, type = 'error') => {
+            const messageBox = document.createElement('div');
+            messageBox.className = `p-4 mt-4 rounded-lg text-center ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            messageBox.textContent = message;
+            const firstChild = appContainer.firstChild;
+            appContainer.insertBefore(messageBox, firstChild);
+            setTimeout(() => messageBox.remove(), 5000);
+        };
+
+        const renderSetupScreen = () => {
+            appContainer.innerHTML = `
+                <h1 class="text-4xl font-extrabold text-center text-gray-800">Buzzer App</h1>
+                <input id="player-name-input" type="text" placeholder="Enter your name" class="w-full p-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-all duration-200">
+                <div class="space-y-4">
+                    <button id="create-game-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 hover:bg-blue-700">Create New Game</button>
+                    <div class="relative flex py-5 items-center">
+                        <div class="flex-grow border-t border-gray-300"></div>
+                        <span class="flex-shrink mx-4 text-gray-500">OR</span>
+                        <div class="flex-grow border-t border-gray-300"></div>
+                    </div>
+                    <input id="game-id-input" type="text" placeholder="Enter Game ID" class="w-full p-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-all duration-200" style="text-transform:uppercase">
+                    <button id="join-game-btn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 hover:bg-green-700">Join Game</button>
                 </div>
             `;
-        } else {
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
-            const auth = getAuth(app);
-
-            let userId = null;
-            let isHost = false;
-            let gameStarted = false;
-            let playerName = '';
-            let gameId = '';
-
-            const appContainer = document.getElementById('app-container');
-
-            // Helper function to show a custom message box instead of alert()
-            const showMessage = (message, type = 'error') => {
-                const messageBox = document.createElement('div');
-                messageBox.className = `p-4 mt-4 rounded-lg text-center ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
-                messageBox.textContent = message;
-                // Prepend the message to keep it at the top
-                const firstChild = appContainer.firstChild;
-                appContainer.insertBefore(messageBox, firstChild);
-                setTimeout(() => messageBox.remove(), 5000);
-            };
-
-            // Render the initial setup screen
-            const renderSetupScreen = () => {
-                appContainer.innerHTML = `
-                    <h1 class="text-4xl font-extrabold text-center text-gray-800">Buzzer App</h1>
-                    <input id="player-name-input" type="text" placeholder="Enter your name" class="w-full p-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-all duration-200">
-                    <div class="space-y-4">
-                        <button id="create-game-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 hover:bg-blue-700">Create New Game</button>
-                        <div class="relative flex py-5 items-center">
-                            <div class="flex-grow border-t border-gray-300"></div>
-                            <span class="flex-shrink mx-4 text-gray-500">OR</span>
-                            <div class="flex-grow border-t border-gray-300"></div>
-                        </div>
-                        <input id="game-id-input" type="text" placeholder="Enter Game ID" class="w-full p-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500 transition-all duration-200" style="text-transform:uppercase">
-                        <button id="join-game-btn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 hover:bg-green-700">Join Game</button>
-                    </div>
-                `;
-                
-                document.getElementById('player-name-input').value = localStorage.getItem('playerName') || '';
-                document.getElementById('game-id-input').value = localStorage.getItem('gameId') || '';
-
-                document.getElementById('create-game-btn').addEventListener('click', createGame);
-                document.getElementById('join-game-btn').addEventListener('click', joinGame);
-            };
-
-            // Render the main game screen
-            const renderGameScreen = (data) => {
-                const myName = data.players.find(p => p.id === userId)?.name;
-                const isBuzzerLocked = data.isBuzzerLocked;
-                const buzzerWinner = data.buzzerWinner;
-                const isPlayerBuzzerWinner = buzzerWinner === myName;
-
-                const buzzerClass = isBuzzerLocked
-                    ? (isPlayerBuzzerWinner ? 'bg-green-500 animate-pulse' : 'bg-gray-400')
-                    : 'bg-yellow-500 hover:bg-yellow-600';
-
-                const winnerDisplay = buzzerWinner
-                    ? `
-                        <div class="bg-blue-600 text-white p-6 rounded-2xl shadow-xl transform scale-105 transition-transform duration-300 text-center">
-                            <p class="text-4xl font-extrabold animate-bounce">BUZZ!</p>
-                            <p class="mt-2 text-2xl">
-                                <span class="font-bold">${buzzerWinner}</span> buzzed in first!
-                            </p>
-                        </div>
-                    `
-                    : '';
-
-                const hostControls = isHost
-                    ? `
-                        <div class="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg shadow-md transition-colors duration-300 w-full max-w-sm text-center">
-                            <button id="reset-buzzer-btn" class="font-bold text-xl w-full">RESET BUZZERS</button>
-                        </div>
-                    `
-                    : '';
-
-                const playersList = data.players.map(player => `
-                    <li key="${player.id}" class="p-2 bg-gray-50 rounded-md">
-                        ${player.name} ${player.id === userId ? '<span class="text-sm text-blue-500">(You)</span>' : ''}
-                    </li>
-                `).join('');
-
-                appContainer.innerHTML = `
-                    <div class="flex flex-col items-center justify-center space-y-8 p-4">
-                        <!-- Game ID Display for easy sharing -->
-                        <div class="bg-gray-100 p-4 rounded-lg shadow-inner text-center">
-                            <h2 class="text-2xl font-bold text-gray-700">Game ID:</h2>
-                            <p class="text-3xl font-mono font-bold text-blue-600 tracking-wider">${gameId}</p>
-                            <p class="text-sm text-gray-500 mt-2">Share this ID with other players!</p>
-                        </div>
-
-                        <!-- Buzzer Button -->
-                        <div class="w-full max-w-sm">
-                            <button id="buzzer-btn" class="w-full h-48 rounded-full shadow-2xl transition-all duration-300 transform active:scale-95 text-white font-bold text-5xl ${buzzerClass}" ${isBuzzerLocked ? 'disabled' : ''}>
-                                ${isBuzzerLocked ? 'LOCKED' : 'BUZZ IN!'}
-                            </button>
-                        </div>
-
-                        <!-- Buzzer Result Display -->
-                        ${winnerDisplay}
-
-                        <!-- Host controls -->
-                        ${hostControls}
-
-                        <!-- Players List -->
-                        <div class="w-full max-w-sm bg-white p-4 rounded-lg shadow-md">
-                            <h3 class="text-xl font-semibold mb-2 text-gray-700">Players (${data.players.length})</h3>
-                            <ul class="space-y-1 text-gray-600">${playersList}</ul>
-                        </div>
-                    </div>
-                `;
-                
-                document.getElementById('buzzer-btn').addEventListener('click', buzzIn);
-                if (isHost) {
-                    document.getElementById('reset-buzzer-btn').addEventListener('click', resetBuzzer);
-                }
-            };
-
-            // Generate a readable 6-character ID
-            const generateReadableId = () => {
-                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-                let result = '';
-                for (let i = 0; i < 6; i++) {
-                    result += chars.charAt(Math.floor(Math.random() * chars.length));
-                }
-                return result;
-            };
-
-            // Main game logic
-            const createGame = async () => {
-                playerName = document.getElementById('player-name-input').value;
-                if (!playerName) {
-                    showMessage('Please enter a player name.');
-                    return;
-                }
-                
-                try {
-                    const customId = generateReadableId();
-                    const newGameDocRef = doc(db, 'games', customId);
-
-                    await setDoc(newGameDocRef, {
-                        hostId: userId,
-                        players: [{ id: userId, name: playerName }],
-                        isBuzzerLocked: false,
-                        buzzerWinner: null,
-                        buzzerTime: null,
-                        createdAt: new Date(),
-                    });
-
-                    gameId = customId;
-                    isHost = true;
-                    gameStarted = true;
-                    localStorage.setItem('gameId', gameId);
-                    localStorage.setItem('playerName', playerName);
-                    listenToGameChanges();
-                } catch (error) {
-                    console.error("Error creating game:", error);
-                    showMessage('Failed to create game. Please try again.');
-                }
-            };
-
-            const joinGame = async () => {
-                playerName = document.getElementById('player-name-input').value;
-                gameId = document.getElementById('game-id-input').value.toUpperCase(); // Force uppercase to match generated IDs
-                
-                if (!playerName || !gameId) {
-                    showMessage('Please enter a Game ID and a player name.');
-                    return;
-                }
-
-                try {
-                    const gameDocRef = doc(db, 'games', gameId);
-                    const gameSnap = await getDoc(gameDocRef);
-
-                    if (!gameSnap.exists()) {
-                        showMessage('Game not found. Please check the Game ID.');
-                        return;
-                    }
-
-                    await runTransaction(db, async (transaction) => {
-                        const doc = await transaction.get(gameDocRef);
-                        if (!doc.exists()) throw 'Document does not exist!';
-                        
-                        const currentPlayers = doc.data().players || [];
-                        const playerExists = currentPlayers.some(player => player.id === userId);
-                        if (!playerExists) {
-                            const updatedPlayers = [...currentPlayers, { id: userId, name: playerName }];
-                            transaction.update(gameDocRef, { players: updatedPlayers });
-                        }
-                    });
-
-                    gameStarted = true;
-                    localStorage.setItem('gameId', gameId);
-                    localStorage.setItem('playerName', playerName);
-                    listenToGameChanges();
-                } catch (error) {
-                    console.error("Error joining game:", error);
-                    showMessage('Failed to join game. Please try again.');
-                }
-            };
-
-            const resetBuzzer = async () => {
-                if (!gameId || !isHost) return;
-
-                try {
-                    const gameDocRef = doc(db, 'games', gameId);
-                    await setDoc(gameDocRef, {
-                        isBuzzerLocked: false,
-                        buzzerWinner: null,
-                        buzzerTime: null,
-                        lastResetAt: new Date(),
-                    }, { merge: true });
-                } catch (error) {
-                    console.error("Error resetting buzzer:", error);
-                    showMessage('Failed to reset buzzer. Please try again.');
-                }
-            };
-
-            const buzzIn = async () => {
-                if (!gameId) return;
-
-                const gameDocRef = doc(db, 'games', gameId);
-                
-                try {
-                    await runTransaction(db, async (transaction) => {
-                        const doc = await transaction.get(gameDocRef);
-                        if (!doc.exists()) throw 'Document does not exist!';
-                        
-                        const isCurrentlyLocked = doc.data().isBuzzerLocked;
-                        if (!isCurrentlyLocked) {
-                            // Find the player's name from the document's player list for robustness
-                            const myName = doc.data().players.find(p => p.id === userId)?.name || playerName;
-                            const time = new Date().getTime();
-                            transaction.update(gameDocRef, {
-                                isBuzzerLocked: true,
-                                buzzerWinner: myName,
-                                buzzerTime: time,
-                            });
-                        }
-                    });
-                } catch (error) {
-                    console.error('Transaction failed:', error);
-                }
-            };
-
-            // Real-time listener for the game state
-            const listenToGameChanges = () => {
-                const gameDocRef = doc(db, 'games', gameId);
-                onSnapshot(gameDocRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        // Check if this user is the host
-                        const gameData = docSnap.data();
-                        isHost = gameData.hostId === userId;
-                        renderGameScreen(gameData);
-                    } else {
-                        showMessage('Game not found. You have been disconnected.', 'error');
-                        gameStarted = false;
-                        localStorage.removeItem('gameId');
-                        localStorage.removeItem('playerName');
-                        renderSetupScreen();
-                    }
-                }, (error) => {
-                    console.error('Error fetching game data:', error);
-                    showMessage('Failed to connect to the game.', 'error');
-                    gameStarted = false;
-                    localStorage.removeItem('gameId');
-                    localStorage.removeItem('playerName');
-                    renderSetupScreen();
-                });
-            };
-
-            // Auth state handler
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                } else {
-                    userId = crypto.randomUUID();
-                }
-
-                // Check if user has a game ID in local storage to auto-join
-                const storedGameId = localStorage.getItem('gameId');
-                const storedPlayerName = localStorage.getItem('playerName');
-
-                if (storedGameId && storedPlayerName) {
-                    gameId = storedGameId;
-                    playerName = storedPlayerName;
-                    gameStarted = true;
-                    listenToGameChanges();
-                } else {
-                    renderSetupScreen();
-                }
-            });
             
-            // Initial sign-in
-            window.onload = async () => {
-                try {
-                    // Sign in anonymously, which is sufficient for this app
-                    await signInAnonymously(auth);
-                } catch (error) {
-                    console.error("Error signing in:", error);
+            document.getElementById('player-name-input').value = localStorage.getItem('playerName') || '';
+            document.getElementById('game-id-input').value = localStorage.getItem('gameId') || '';
+
+            document.getElementById('create-game-btn').addEventListener('click', createGame);
+            document.getElementById('join-game-btn').addEventListener('click', joinGame);
+        };
+
+        const renderGameScreen = (data) => {
+            const myName = data.players.find(p => p.id === userId)?.name;
+            const isBuzzerLocked = data.isBuzzerLocked;
+            const buzzerWinner = data.buzzerWinner;
+            const isPlayerBuzzerWinner = buzzerWinner === myName;
+
+            const buzzerClass = isBuzzerLocked
+                ? (isPlayerBuzzerWinner ? 'bg-green-500 animate-pulse' : 'bg-gray-400')
+                : 'bg-yellow-500 hover:bg-yellow-600';
+
+            const winnerDisplay = buzzerWinner
+                ? `
+                    <div class="bg-blue-600 text-white p-6 rounded-2xl shadow-xl transform scale-105 transition-transform duration-300 text-center w-full max-w-sm">
+                        <p class="text-4xl font-extrabold animate-bounce">BUZZ!</p>
+                        <p class="mt-2 text-2xl">
+                            <span class="font-bold">${buzzerWinner}</span> buzzed in!
+                        </p>
+                    </div>
+                `
+                : '';
+
+            const hostControls = isHost
+                ? `
+                    <div class="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg shadow-md transition-colors duration-300 w-full max-w-sm text-center">
+                        <button id="reset-buzzer-btn" class="font-bold text-xl w-full">RESET BUZZERS</button>
+                    </div>
+                `
+                : '';
+
+            const playersList = data.players.map(player => `
+                <li key="${player.id}" class="p-2 bg-gray-50 rounded-md">
+                    ${player.name} ${player.id === userId ? '<span class="text-sm text-blue-500">(You)</span>' : ''}
+                </li>
+            `).join('');
+
+            appContainer.innerHTML = `
+                <div class="flex flex-col items-center justify-center space-y-6 p-2">
+                    <div class="bg-gray-100 p-4 rounded-lg shadow-inner text-center w-full max-w-sm">
+                        <h2 class="text-2xl font-bold text-gray-700">Game ID:</h2>
+                        <p class="text-3xl font-mono font-bold text-blue-600 tracking-wider">${gameId}</p>
+                    </div>
+
+                    <div class="w-full max-w-sm">
+                        <button id="buzzer-btn" class="w-full h-48 rounded-full shadow-2xl transition-all duration-300 transform active:scale-95 text-white font-bold text-5xl ${buzzerClass}" ${isBuzzerLocked ? 'disabled' : ''}>
+                            ${isBuzzerLocked ? 'LOCKED' : 'BUZZ IN!'}
+                        </button>
+                    </div>
+
+                    ${winnerDisplay}
+                    ${hostControls}
+
+                    <div class="w-full max-w-sm bg-white p-4 rounded-lg shadow-md border">
+                        <h3 class="text-xl font-semibold mb-2 text-gray-700">Players (${data.players.length})</h3>
+                        <ul class="space-y-1 text-gray-600">${playersList}</ul>
+                    </div>
+                    
+                    <div class="w-full max-w-sm mt-4">
+                        <button id="leave-game-btn" class="w-full bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg shadow hover:bg-gray-300 transition duration-200">
+                            Leave Game
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('buzzer-btn').addEventListener('click', buzzIn);
+            document.getElementById('leave-game-btn').addEventListener('click', leaveGame);
+            
+            if (isHost) {
+                document.getElementById('reset-buzzer-btn').addEventListener('click', resetBuzzer);
+            }
+        };
+
+        const generateReadableId = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        };
+
+        const createGame = async () => {
+            playerName = document.getElementById('player-name-input').value;
+            if (!playerName) {
+                showMessage('Please enter a player name.');
+                return;
+            }
+            
+            try {
+                const customId = generateReadableId();
+                const newGameDocRef = doc(db, 'games', customId);
+
+                await setDoc(newGameDocRef, {
+                    hostId: userId,
+                    players: [{ id: userId, name: playerName }],
+                    isBuzzerLocked: false,
+                    buzzerWinner: null,
+                    buzzerTime: null,
+                    createdAt: new Date(),
+                });
+
+                gameId = customId;
+                isHost = true;
+                gameStarted = true;
+                localStorage.setItem('gameId', gameId);
+                localStorage.setItem('playerName', playerName);
+                listenToGameChanges();
+            } catch (error) {
+                console.error("Error creating game:", error);
+                showMessage('Failed to create game. Please try again.');
+            }
+        };
+
+        const joinGame = async () => {
+            playerName = document.getElementById('player-name-input').value;
+            gameId = document.getElementById('game-id-input').value.toUpperCase(); 
+            
+            if (!playerName || !gameId) {
+                showMessage('Please enter a Game ID and a player name.');
+                return;
+            }
+
+            try {
+                const gameDocRef = doc(db, 'games', gameId);
+                const gameSnap = await getDoc(gameDocRef);
+
+                if (!gameSnap.exists()) {
+                    showMessage('Game not found. Please check the Game ID.');
+                    return;
                 }
-            };
-        }
+
+                await runTransaction(db, async (transaction) => {
+                    const doc = await transaction.get(gameDocRef);
+                    if (!doc.exists()) throw 'Document does not exist!';
+                    
+                    const currentPlayers = doc.data().players || [];
+                    const playerExists = currentPlayers.some(player => player.id === userId);
+                    if (!playerExists) {
+                        const updatedPlayers = [...currentPlayers, { id: userId, name: playerName }];
+                        transaction.update(gameDocRef, { players: updatedPlayers });
+                    }
+                });
+
+                gameStarted = true;
+                localStorage.setItem('gameId', gameId);
+                localStorage.setItem('playerName', playerName);
+                listenToGameChanges();
+            } catch (error) {
+                console.error("Error joining game:", error);
+                showMessage('Failed to join game. Please try again.');
+            }
+        };
+
+        const resetBuzzer = async () => {
+            if (!gameId || !isHost) return;
+
+            try {
+                const gameDocRef = doc(db, 'games', gameId);
+                await setDoc(gameDocRef, {
+                    isBuzzerLocked: false,
+                    buzzerWinner: null,
+                    buzzerTime: null,
+                    lastResetAt: new Date(),
+                }, { merge: true });
+            } catch (error) {
+                console.error("Error resetting buzzer:", error);
+                showMessage('Failed to reset buzzer. Please try again.');
+            }
+        };
+
+        const buzzIn = async () => {
+            if (!gameId) return;
+
+            const gameDocRef = doc(db, 'games', gameId);
+            
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const doc = await transaction.get(gameDocRef);
+                    if (!doc.exists()) throw 'Document does not exist!';
+                    
+                    const isCurrentlyLocked = doc.data().isBuzzerLocked;
+                    if (!isCurrentlyLocked) {
+                        const myName = doc.data().players.find(p => p.id === userId)?.name || playerName;
+                        const time = new Date().getTime();
+                        transaction.update(gameDocRef, {
+                            isBuzzerLocked: true,
+                            buzzerWinner: myName,
+                            buzzerTime: time,
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('Transaction failed:', error);
+            }
+        };
+
+        const leaveGame = () => {
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+            gameStarted = false;
+            gameId = '';
+            isHost = false;
+            localStorage.removeItem('gameId');
+            renderSetupScreen();
+        };
+
+        const listenToGameChanges = () => {
+            const gameDocRef = doc(db, 'games', gameId);
+            unsubscribeSnapshot = onSnapshot(gameDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const gameData = docSnap.data();
+                    isHost = gameData.hostId === userId;
+                    renderGameScreen(gameData);
+                } else {
+                    showMessage('Game ended or not found.', 'error');
+                    leaveGame();
+                }
+            }, (error) => {
+                console.error('Error fetching game data:', error);
+                showMessage('Failed to connect to the game.', 'error');
+                leaveGame();
+            });
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+            } else {
+                userId = crypto.randomUUID();
+            }
+
+            const storedGameId = localStorage.getItem('gameId');
+            const storedPlayerName = localStorage.getItem('playerName');
+
+            if (storedGameId && storedPlayerName) {
+                gameId = storedGameId;
+                playerName = storedPlayerName;
+                gameStarted = true;
+                listenToGameChanges();
+            } else {
+                renderSetupScreen();
+            }
+        });
+        
+        window.onload = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Error signing in:", error);
+            }
+        };
     </script>
 </body>
 </html>
